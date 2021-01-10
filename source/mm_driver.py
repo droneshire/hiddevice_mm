@@ -6,33 +6,32 @@ import struct
 
 from enum import Enum
 
-VENDOR_ID = 0x16c0
-PRODUCT_ID = 0x27db
+VENDOR_ID = 0x16C0
+PRODUCT_ID = 0x27DB
 REPORT_LENGTH = 8
 INVALID_BUTTON_INPUTS = [0]
 
+
 class Led(Enum):
-    kRed = 0,
-    kGreen = 1,
+    kRed = (0,)
+    kGreen = (1,)
+
 
 class Report(Enum):
-    kModifierKeys = 0,
-    kReserved = 1,
-    kKeypress1 = 2,
-    kKeypress2 = 3,
-    kKeypress3 = 4,
-    kKeypress4 = 5,
-    kKeypress5 = 6,
-    kKeypress6 = 7,
-
-    def val(self):
-        return self.value[0]
+    kModifierKeys = 0
+    kReserved = 1
+    kKeypress1 = 2
+    kKeypress2 = 3
+    kKeypress3 = 4
+    kKeypress4 = 5
+    kKeypress5 = 6
+    kKeypress6 = 7
 
 
 MUTEME_BUTTON = Report.kKeypress2
 
-class MuteMeHid(object):
 
+class MuteMeHid(object):
     def __init__(self, verbose=False):
         self.log_name = "MuteMeHid: "
         self.device = hid.device()
@@ -71,7 +70,7 @@ class MuteMeHid(object):
             if len(raw_report) != REPORT_LENGTH:
                 continue
 
-            button_val = raw_report[MUTEME_BUTTON.val()]
+            button_val = raw_report[MUTEME_BUTTON.value]
             if button_val in INVALID_BUTTON_INPUTS:
                 continue
 
@@ -89,7 +88,6 @@ class MuteMeHid(object):
             self.lock.acquire()
             self.toggle = not self.toggle
             self.lock.release()
-
 
     def get_button_status(self):
         self.lock.acquire()

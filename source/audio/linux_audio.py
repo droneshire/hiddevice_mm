@@ -5,15 +5,17 @@ import subprocess
 
 from audio.mic_audio import OsAudioBase
 
+
 class AmixerMic(object):
     """ Simple wrapper class for amixer mic features """
+
     def __init__(self, card_inx, mic_name, mic_control_name):
         self.card_inx = card_inx
         self.mic_name = mic_name
         self.mic_control_name = mic_control_name
 
-class LinuxAudio(OsAudioBase):
 
+class LinuxAudio(OsAudioBase):
     def __init__(self, verbose=False):
         super(LinuxAudio, self).__init__()
         self.verbose = verbose
@@ -37,7 +39,6 @@ class LinuxAudio(OsAudioBase):
         mic = self.available_mics[self.mic_inx]
         cmd = ["amixer", "-c", str(mic.card_inx), "cset", mic.mic_control_name, "0"]
         self._run_cmd(cmd)
-
 
     def unmute(self):
         if not self.available_mics:
@@ -131,7 +132,7 @@ class LinuxAudio(OsAudioBase):
             controls = self._run_cmd(cmd).split("numid=")
             for control in controls:
                 if "Mic" not in control:
-                     continue
+                    continue
                 if "type=BOOLEAN" not in control:
                     continue
                 if "Phantom" in control:

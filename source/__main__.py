@@ -14,6 +14,7 @@ elif sys.platform == "win32":
     # TODO(ross): Windows
     from audio.windows_audio import WindowsAudio as OsAudio
 
+
 def monitor_mute_me(verbose=False):
     last_button_status = False
     audio = OsAudio(verbose=verbose)
@@ -30,6 +31,7 @@ def monitor_mute_me(verbose=False):
                 audio.mute()
         last_button_status = button_status
         time.sleep(0.2)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)

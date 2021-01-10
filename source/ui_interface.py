@@ -12,6 +12,7 @@ elif sys.platform == "win32":
     # TODO(ross): Windows
     from audio.windows_audio import WindowsAudio as OsAudio
 
+
 class MuteMeUi(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -21,6 +22,7 @@ class MuteMeUi(QMainWindow):
         self.setGeometry(300, 300, 600, 400)
         self.setWindowTitle("PyQt5 window")
         self.show()
+
 
 def ui_begin():
     app = QApplication(sys.argv)

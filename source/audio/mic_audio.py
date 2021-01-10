@@ -1,7 +1,7 @@
 """ Base class for audio representation of the OS """
 
-class OsAudioBase(object):
 
+class OsAudioBase(object):
     def is_muted(self):
         raise NotImplementedError
 
