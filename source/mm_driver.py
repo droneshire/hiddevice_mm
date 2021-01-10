@@ -6,15 +6,18 @@ import struct
 
 from enum import Enum
 
-VENDOR_ID = 0x16C0
-PRODUCT_ID = 0x27DB
-REPORT_LENGTH = 8
-INVALID_BUTTON_INPUTS = [0]
-
 
 class Led(Enum):
-    kRed = (0,)
-    kGreen = (1,)
+    kNone = 0
+    kRed = 1
+    kGreen = 2
+    kRedGreenFlash = 3
+    kBlue = 4
+    kRedBlueFlash = 5
+    kGreenBlueFlash = 6
+    kRedGreenBlueFlash = 7
+    kYellow = 8
+    kRedYellowFlash = 9
 
 
 class Report(Enum):
@@ -28,6 +31,10 @@ class Report(Enum):
     kKeypress6 = 7
 
 
+VENDOR_ID = 0x16C0
+PRODUCT_ID = 0x27DB
+REPORT_LENGTH = 8
+INVALID_BUTTON_INPUTS = [0]
 MUTEME_BUTTON = Report.kKeypress2
 
 
@@ -96,14 +103,32 @@ class MuteMeHid(object):
         return button_status
 
     def set_muted(self):
-        self._write_output_report(Led.kGreen)
+        self._write_output_report(Led.kRed)
 
     def set_unmuted(self):
         self._write_output_report(Led.kGreen)
 
     def _read_input_report(self, timeout):
-        return self.device.read(8, timeout)
+        """
+        8 byte input report:
+         b7       | b6       | b5       | b4       | b3       | b2       | b1     | b0
+        Key Code 6|Key Code 5|Key Code 4|Key Code 3|Key Code 2|Key Code 1|Reserved|Modifier Keys|
+        """
+        data = []
+        try:
+            data = self.device.read(8, timeout)
+        except IOError as e:
+            print("Error reading response: {}".format(e))
+        return data
 
     def _write_output_report(self, led_color):
-        # TODO(ross): implementonce you know the structure
-        pass
+        """
+        output report is a one byte command that has 8 bits of resolution.
+        color command represented in the Led class
+        """
+        bytes_sent = 0
+        try:
+            bytes_sent = self.device.write([led_color.value])
+        except IOError as e:
+            print("Error reading response: {}".format(e))
+        return bytes_sent
