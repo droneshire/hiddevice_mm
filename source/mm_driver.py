@@ -18,7 +18,7 @@ class Led(Enum):
     kRedGreenBlueFlash = 7
     kYellow = 8
     kRedYellowFlash = 9
-    kOff = 44
+    kOff = 0x40
 
 
 class Report(Enum):
