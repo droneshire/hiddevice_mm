@@ -9,6 +9,7 @@ elif sys.platform == "win32":
     # TODO(ross): Windows
     from audio.windows_audio import WindowsAudio as OsAudio
 
+
 def muteme_commandline(muteme_driver, verbose=False):
     last_button_status = False
     audio = OsAudio(verbose=verbose)
