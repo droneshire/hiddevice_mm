@@ -3,14 +3,18 @@
 import re
 import subprocess
 
-from audio.mic_audio import OsAudioBase
+from audio.os_audio_base import OsAudioBase
+from utils import is_zoom_running
+
+# interact with audio using amixer or pulseaudio
+USE_AMIXER = False
 
 
-class AmixerMic(object):
-    """ Simple wrapper class for amixer mic features """
+class LinuxMic(object):
+    """ Simple wrapper class for linux mic features """
 
-    def __init__(self, card_inx, mic_name, mic_control_name):
-        self.card_inx = card_inx
+    def __init__(self, mic_inx, mic_name, mic_control_name):
+        self.card_inx = mic_inx
         self.mic_name = mic_name
         self.mic_control_name = mic_control_name
 
@@ -36,8 +40,16 @@ class LinuxAudio(OsAudioBase):
             if self.verbose:
                 print("no mic selected!")
             return
+
+        # still update the system after updating zoom, so that we track state
+        self._maybe_send_zoom_mute_toggle()
+
         mic = self.available_mics[self.mic_inx]
-        cmd = ["amixer", "-c", str(mic.card_inx), "cset", mic.mic_control_name, "0"]
+
+        if USE_AMIXER:
+            cmd = ["amixer", "-c", str(mic.card_inx), "cset", mic.mic_control_name, "0"]
+        else:
+            cmd = ["pactl", "set-source-mute", mic.mic_control_name, "1"]
         self._run_cmd(cmd)
 
     def unmute(self):
@@ -46,12 +58,19 @@ class LinuxAudio(OsAudioBase):
                 print("no mic selected!")
             return
 
+        # still update the system after updating zoom, so that we track state
+        self._maybe_send_zoom_mute_toggle()
+
         mic = self.available_mics[self.mic_inx]
-        cmd = ["amixer", "-c", str(mic.card_inx), "cset", mic.mic_control_name, "1"]
+
+        if USE_AMIXER:
+            cmd = ["amixer", "-c", str(mic.card_inx), "cset", mic.mic_control_name, "1"]
+        else:
+            cmd = ["pactl", "set-source-mute", mic.mic_control_name, "0"]
         self._run_cmd(cmd)
 
     def get_mics(self):
-        self._get_available_mics()
+        self._update_available_mics()
         return [m.mic_name for m in self.available_mics]
 
     def set_mic(self, mic_index):
@@ -66,6 +85,7 @@ class LinuxAudio(OsAudioBase):
     def _run_cmd(self, cmd, err_msg=None):
         if not isinstance(cmd, list):
             return ""
+        output = ""
         try:
             output = subprocess.check_output(cmd)
             if not isinstance(output, str):
@@ -76,6 +96,25 @@ class LinuxAudio(OsAudioBase):
             if self.verbose:
                 print("failed to run {}".format(cmd) if err_msg is None else err_msg)
         return output
+
+    def _maybe_send_zoom_mute_toggle(self):
+        if not is_zoom_running():
+            return False
+        cmd = [
+            "xdotool",
+            "search",
+            "--name",
+            "Zoom Meeting",
+            "windowactivate",
+            "--sync",
+            "%1",
+            "key",
+            "alt+a",  # toggle zoom
+            "windowactivate",
+            "$(xdotool getactivewindow)",
+        ]
+        self._run_cmd(cmd)
+        return True
 
     def _get_available_acards(self):
         """ Finds the audio cards on the device using /proc/asound/cards.
@@ -103,7 +142,16 @@ class LinuxAudio(OsAudioBase):
                     print("Found card index {}".format(card_inx))
         return cards
 
-    def _get_available_mics(self):
+    def _update_available_mics(self):
+        if USE_AMIXER:
+            self._parse_amixer_contents()
+        else:
+            self._parse_pactl_sources()
+
+    def _is_mic_muted(self):
+        return self._amixer_is_muted() if USE_AMIXER else self._pacmd_is_muted()
+
+    def _parse_amixer_contents(self):
         """ Parse the amixer contents output for each card and determine if
         there is a mic switch control
         Example output:
@@ -142,9 +190,9 @@ class LinuxAudio(OsAudioBase):
                 control_lines = control.splitlines()
                 control_name = control_lines[0].split("name=", 1)[1]
                 cset_name = control_lines[0].split(",", 1)[1]
-                self.available_mics.append(AmixerMic(card[0], control_name, cset_name))
+                self.available_mics.append(LinuxMic(card[0], control_name, cset_name))
 
-    def _is_mic_muted(self):
+    def _amixer_is_muted(self):
         """ Parses amixer output for mute switch status
 
         Example output:
@@ -153,7 +201,51 @@ class LinuxAudio(OsAudioBase):
             ; type=BOOLEAN,access=rw------,values=2
             : values=on,on
         """
-        is_muted = False
         mic = self.available_mics[self.mic_inx]
         cmd = ["amixer", "-c", str(mic.card_inx), "cset", mic.mic_control_name]
         return "off" in self._run_cmd(cmd).split("values=")[2]
+
+    def _pactl_get_mic_stats(self):
+        """
+        Example Output:
+        ]$ pactl list sources
+        Source #0
+            State: RUNNING
+            Name: alsa_input.usb-Sonix_Technology_Co.__Ltd._USB_2.0_Camera_SN0001-02.analog-mono
+            Description: USB 2.0 Camera Analog Mono
+            ....
+        Source #1
+            State: IDLE
+            Name: alsa_output.pci-0000_00_1f.3.hdmi-stereo.monitor
+            Description: Monitor of Built-in Audio Digital Stereo (HDMI)
+            ...
+        Source #2
+            State: IDLE
+            Name: alsa_input.pci-0000_00_1f.3.analog-stereo
+            Description: Built-in Audio Analog Stereo
+            ...
+        """
+        cmd = ["pactl", "list", "sources"]
+        output = self._run_cmd(cmd)
+        sources_raw = output.split("Source #")[1:]
+        sources = []
+        for source in sources_raw:
+            source_stats = dict(l.strip().split(":", 1) for l in source.splitlines() if ":" in l)
+            sources.append(source_stats)
+        return sources
+
+    def _parse_pactl_sources(self):
+        for index, mic in enumerate(self._pactl_get_mic_stats()):
+            mic_name = mic.get("Description", "").strip()
+            mic_control_name = mic.get("Name", "").strip()
+            self.available_mics.append(LinuxMic(index, mic_name, mic_control_name))
+
+    def _pactl_get_system_mic_stats(self):
+        for mic in self._pactl_get_mic_stats():
+            if mic["State"].strip() == "RUNNING":
+                return mic
+        return {}
+
+    def _pacmd_is_muted(self):
+        mic_status = self._pactl_get_mic_stats()[self.mic_inx]
+        return mic_status["Mute"].strip() == "yes"

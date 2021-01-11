@@ -18,6 +18,7 @@ class Led(Enum):
     kRedGreenBlueFlash = 7
     kYellow = 8
     kRedYellowFlash = 9
+    kOff = 44
 
 
 class Report(Enum):
@@ -109,7 +110,7 @@ class MuteMeHid(object):
         self._write_output_report(Led.kGreen)
 
     def set_idle(self):
-        self._write_output_report(Led.kYellow)
+        self._write_output_report(Led.kOff)
 
     def _read_input_report(self, timeout):
         """

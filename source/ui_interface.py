@@ -45,7 +45,12 @@ class MuteMeUi(QWidget):
 
         # create toggle button
         self.last_button_status = False
-        muteme_button_text = "Unmute" if self.audio.is_muted() else "Mute"
+        is_muted = self.audio.is_muted()
+        muteme_button_text = "Unmute" if is_muted else "Mute"
+        if is_muted:
+            self.muteme_driver.set_muted()
+        else:
+            self.muteme_driver.set_unmuted()
         self.muteme_button = QPushButton(muteme_button_text)
 
         self.layout = QVBoxLayout()
@@ -93,6 +98,11 @@ class MuteMeUi(QWidget):
     @Slot(int)
     def _handle_change_mic(self, index):
         self.audio.set_mic(index)
+        is_muted = self.audio.is_muted()
+        if is_muted:
+            self.muteme_driver.set_muted()
+        else:
+            self.muteme_driver.set_unmuted()
 
     @Slot()
     def _handle_muteme_button_click(self):
