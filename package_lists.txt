@@ -1,0 +1,1 @@
+xdotool             # for sending commands to a gui
