@@ -108,6 +108,9 @@ class MuteMeHid(object):
     def set_unmuted(self):
         self._write_output_report(Led.kGreen)
 
+    def set_idle(self):
+        self._write_output_report(Led.kYellow)
+
     def _read_input_report(self, timeout):
         """
         8 byte input report:
