@@ -8,7 +8,6 @@ from PySide2.QtWidgets import QApplication
 from PySide2.QtWidgets import QComboBox
 from PySide2.QtWidgets import QLabel
 from PySide2.QtWidgets import QPushButton
-from PySide2.QtWidgets import QSystemTrayIcon
 from PySide2.QtWidgets import QVBoxLayout
 from PySide2.QtWidgets import QWidget
 
@@ -31,7 +30,7 @@ class MuteMeUi(QWidget):
         self.verbose = verbose
         self.last_button_status = False
 
-        self.available_mics = self.audio.get_mics()
+        available_mics = self.audio.get_mics()
         self.audio.set_mic(0)
 
         # timer for checking on muteme status
@@ -41,7 +40,7 @@ class MuteMeUi(QWidget):
 
         # combo box for mic select
         self.mic_combo_box = QComboBox()
-        self.mic_combo_box.addItems(self.available_mics)
+        self.mic_combo_box.addItems(available_mics)
         self.mic_combo_box.setCurrentIndex(0)
 
         # create toggle button
@@ -82,20 +81,17 @@ class MuteMeUi(QWidget):
         return not is_muted
 
     def _handle_timer(self):
+        # TODO(ross): update mics available in combo box here
         button_status = self.muteme_driver.get_button_status()
         if button_status == self.last_button_status:
             return
 
         is_muted = self._toggle_muteme()
-
         self.muteme_button.setText("Unmute" if is_muted else "Mute")
         self.last_button_status = button_status
 
     @Slot(int)
     def _handle_change_mic(self, index):
-        mic = self.mic_combo_box.itemIcon(index)
-        if self.verbose:
-            print("Selecting {}".format(mic))
         self.audio.set_mic(index)
 
     @Slot()
